@@ -9,6 +9,7 @@ export default function Home() {
   const [search, setSearch] = useState("");
   const [weeklyMenu, setWeeklyMenu] = useState([]);
   const [filterCategory, setFilterCategory] = useState("すべて");
+  const [selectedImage, setSelectedImage] = useState(null);
 
   useEffect(() => {
     const savedImages = localStorage.getItem("savedImages");
@@ -34,17 +35,16 @@ export default function Home() {
     const days = ["月", "火", "水", "木", "金", "土", "日"];
     const pick = (cat) => {
       const pool = images.filter((img) => img.category === cat);
-      const shuffled = [...pool].sort(() => 0.5 - Math.random());
-      return shuffled;
+      return [...pool].sort(() => 0.5 - Math.random());
     };
     const main = pick("主菜");
     const side = pick("副菜");
     const soup = pick("汁物");
     setWeeklyMenu(days.map((day, i) => ({
       day,
-      main: main[i % main.length]?.title || "未設定",
-      side: side[i % side.length]?.title || "未設定",
-      soup: soup[i % soup.length]?.title || "未設定",
+      main: main[i % Math.max(main.length, 1)]?.title || "未設定",
+      side: side[i % Math.max(side.length, 1)]?.title || "未設定",
+      soup: soup[i % Math.max(soup.length, 1)]?.title || "未設定",
     })));
   };
 
@@ -83,8 +83,7 @@ export default function Home() {
           <h2>📅 今週の献立</h2>
           {weeklyMenu.map(({ day, main, side, soup }) => (
             <div key={day} style={{ background: "white", padding: 12, borderRadius: 10, marginBottom: 10 }}>
-              <strong>{day}曜日：</strong>
-              　🍖 {main}　　🥗 {side}　　🍜 {soup}
+              <strong>{day}曜日：</strong>　🍖 {main}　　🥗 {side}　　🍜 {soup}
             </div>
           ))}
         </div>
@@ -94,7 +93,8 @@ export default function Home() {
       <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(160px, 1fr))", gap: 20, marginTop: 20 }}>
         {filtered.map((image, index) => (
           <div key={index} style={{ border: "1px solid #ddd", borderRadius: 16, padding: 12, background: "white", boxShadow: "0 2px 8px rgba(0,0,0,0.08)" }}>
-            <img src={image.url} style={{ width: "100%", height: 220, objectFit: "cover", borderRadius: 10 }} />
+            <img src={image.url} onClick={() => setSelectedImage(image.url)}
+              style={{ width: "100%", height: 220, objectFit: "cover", borderRadius: 10, cursor: "pointer" }} />
 
             <select value={image.category || "主菜"} onChange={(e) => {
               const updated = [...images]; updated[images.indexOf(image)].category = e.target.value; setImages(updated);
@@ -121,6 +121,14 @@ export default function Home() {
           </div>
         ))}
       </div>
+
+      {selectedImage && (
+        <div onClick={() => setSelectedImage(null)}
+          style={{ position: "fixed", top: 0, left: 0, width: "100vw", height: "100vh",
+            background: "rgba(0,0,0,0.8)", display: "flex", alignItems: "center", justifyContent: "center", zIndex: 1000, cursor: "pointer" }}>
+          <img src={selectedImage} style={{ maxWidth: "90vw", maxHeight: "90vh", borderRadius: 12, objectFit: "contain" }} />
+        </div>
+      )}
     </div>
   );
 }
