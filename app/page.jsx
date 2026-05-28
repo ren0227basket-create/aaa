@@ -3,6 +3,8 @@
 import { useState, useEffect } from "react";
 
 const CATEGORIES = ["主菜", "副菜", "汁物"];
+const CLOUD_NAME = "dix5womo0";
+const UPLOAD_PRESET = "jmxpadhf";
 
 export default function Home() {
   const [images, setImages] = useState([]);
@@ -10,6 +12,7 @@ export default function Home() {
   const [weeklyMenu, setWeeklyMenu] = useState([]);
   const [filterCategory, setFilterCategory] = useState("すべて");
   const [selectedImage, setSelectedImage] = useState(null);
+  const [uploading, setUploading] = useState(false);
 
   useEffect(() => {
     const savedImages = localStorage.getItem("savedImages");
@@ -20,15 +23,21 @@ export default function Home() {
     localStorage.setItem("savedImages", JSON.stringify(images));
   }, [images]);
 
-  const handleImageChange = (e) => {
+  const handleImageChange = async (e) => {
     const files = Array.from(e.target.files);
-    files.forEach((file) => {
-      const reader = new FileReader();
-      reader.onload = () => {
-        setImages((prev) => [...prev, { url: reader.result, title: "", memo: "", tags: "", category: "主菜" }]);
-      };
-      reader.readAsDataURL(file);
-    });
+    setUploading(true);
+    for (const file of files) {
+      const formData = new FormData();
+      formData.append("file", file);
+      formData.append("upload_preset", UPLOAD_PRESET);
+      const res = await fetch(`https://api.cloudinary.com/v1_1/${CLOUD_NAME}/image/upload`, {
+        method: "POST",
+        body: formData,
+      });
+      const data = await res.json();
+      setImages((prev) => [...prev, { url: data.secure_url, title: "", memo: "", tags: "", category: "主菜" }]);
+    }
+    setUploading(false);
   };
 
   const updateImage = (index, field, value) => {
@@ -53,7 +62,7 @@ export default function Home() {
     })));
   };
 
-  const filtered = images.filter((img, i) => {
+  const filtered = images.filter((img) => {
     const matchSearch = img.title.includes(search) || img.memo.includes(search) || (img.tags || "").includes(search);
     const matchCat = filterCategory === "すべて" || img.category === filterCategory;
     return matchSearch && matchCat;
@@ -77,14 +86,17 @@ export default function Home() {
       </div>
 
       <button onClick={makeWeeklyMenu}
-        style={{ padding: "10px 16px", borderRadius: 10, border: "none", background: "#4caf50", color: "white", cursor: "pointer", marginBottom: 20 }}>
+        style={{ padding: "10px 16px", borderRadius: 10, border: "none", background: "#4caf50", color: "white", cursor: "pointer", marginBottom: 20, marginRight: 10 }}>
         1週間の献立を作る
       </button>
 
-      <input type="file" multiple onChange={handleImageChange} style={{ display: "block", marginBottom: 20 }} />
+      <label style={{ padding: "10px 16px", borderRadius: 10, background: "#2196f3", color: "white", cursor: "pointer" }}>
+        {uploading ? "アップロード中..." : "📷 画像を追加"}
+        <input type="file" multiple onChange={handleImageChange} style={{ display: "none" }} accept="image/*" />
+      </label>
 
       {weeklyMenu.length > 0 && (
-        <div style={{ marginBottom: 30 }}>
+        <div style={{ marginBottom: 30, marginTop: 20 }}>
           <h2>📅 今週の献立</h2>
           {weeklyMenu.map(({ day, main, side, soup }) => (
             <div key={day} style={{ background: "white", padding: 12, borderRadius: 10, marginBottom: 10 }}>
@@ -94,7 +106,7 @@ export default function Home() {
         </div>
       )}
 
-      <h2>保存したレシピ候補</h2>
+      <h2 style={{ marginTop: 20 }}>保存したレシピ候補</h2>
       <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(160px, 1fr))", gap: 20, marginTop: 20 }}>
         {filtered.map((image, idx) => {
           const realIndex = images.indexOf(image);
