@@ -180,13 +180,24 @@ export default function Home() {
           )}
         </div>
 
-        {weeklyMenu.length > 0 && (
+      {weeklyMenu.length > 0 && (
           <div style={{ background: theme.card, borderRadius: 12, padding: 14, marginBottom: 14 }}>
             <div style={{ fontSize: 12, color: theme.muted, marginBottom: 10 }}>📅 今週の献立</div>
             {weeklyMenu.map(({ day, main, side, soup }) => (
-              <div key={day} style={{ display: "flex", padding: "8px 0", borderBottom: `0.5px solid ${theme.surface}`, gap: 8 }}>
+              <div key={day} style={{ display: "flex", padding: "8px 0", borderBottom: `0.5px solid ${theme.surface}`, gap: 8, alignItems: "center" }}>
                 <span style={{ width: 32, fontSize: 12, color: theme.muted, flexShrink: 0 }}>{day}曜</span>
-                <span style={{ fontSize: 12, color: theme.text }}>🍖 {main?.title || "未設定"}　🥗 {side?.title || "未設定"}　🍜 {soup?.title || "未設定"}</span>
+                <span style={{ fontSize: 12, color: theme.text, display: "flex", gap: 8, flexWrap: "wrap" }}>
+                  {[{ icon: "🍖", dish: main }, { icon: "🥗", dish: side }, { icon: "🍜", dish: soup }].map(({ icon, dish }) => (
+                    dish ? (
+                      <span key={icon} onClick={() => setEditingImage(dish)}
+                        style={{ cursor: "pointer", color: theme.primary, textDecoration: "underline", textDecorationColor: theme.surface }}>
+                        {icon} {dish.title || "名前未設定"}
+                      </span>
+                    ) : (
+                      <span key={icon} style={{ color: theme.muted }}>{icon} 未設定</span>
+                    )
+                  ))}
+                </span>
               </div>
             ))}
           </div>
