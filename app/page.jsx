@@ -32,14 +32,13 @@ export default function Home() {
   const [search, setSearch] = useState("");
   const [weeklyMenu, setWeeklyMenu] = useState([]);
   const [filterCategory, setFilterCategory] = useState("すべて");
-  const [selectedImage, setSelectedImage] = useState(null);
   const [uploading, setUploading] = useState(false);
   const [shoppingList, setShoppingList] = useState([]);
   const [loading, setLoading] = useState(true);
+  const [editingImage, setEditingImage] = useState(null);
+  const [lightboxImage, setLightboxImage] = useState(null);
 
-  useEffect(() => {
-    fetchRecipes();
-  }, []);
+  useEffect(() => { fetchRecipes(); }, []);
 
   const fetchRecipes = async () => {
     setLoading(true);
@@ -55,9 +54,7 @@ export default function Home() {
       const formData = new FormData();
       formData.append("file", file);
       formData.append("upload_preset", UPLOAD_PRESET);
-      const res = await fetch(`https://api.cloudinary.com/v1_1/${CLOUD_NAME}/image/upload`, {
-        method: "POST", body: formData,
-      });
+      const res = await fetch(`https://api.cloudinary.com/v1_1/${CLOUD_NAME}/image/upload`, { method: "POST", body: formData });
       const data = await res.json();
       const { data: inserted } = await supabase.from("recipes").insert({
         url: data.secure_url, title: "", memo: "", tags: "", category: "主菜", ingredients: "", seasons: [],
@@ -69,6 +66,7 @@ export default function Home() {
 
   const updateImage = async (id, field, value) => {
     setImages((prev) => prev.map((img) => img.id === id ? { ...img, [field]: value } : img));
+    if (editingImage?.id === id) setEditingImage((prev) => ({ ...prev, [field]: value }));
     await supabase.from("recipes").update({ [field]: value }).eq("id", id);
   };
 
@@ -77,11 +75,14 @@ export default function Home() {
     const seasons = img.seasons || [];
     const newSeasons = seasons.includes(season) ? seasons.filter((s) => s !== season) : [...seasons, season];
     setImages((prev) => prev.map((i) => i.id === id ? { ...i, seasons: newSeasons } : i));
+    if (editingImage?.id === id) setEditingImage((prev) => ({ ...prev, seasons: newSeasons }));
     await supabase.from("recipes").update({ seasons: newSeasons }).eq("id", id);
   };
 
   const deleteImage = async (id) => {
+    if (!confirm("削除しますか？")) return;
     setImages((prev) => prev.filter((img) => img.id !== id));
+    setEditingImage(null);
     await supabase.from("recipes").delete().eq("id", id);
   };
 
@@ -108,10 +109,7 @@ export default function Home() {
     weeklyMenu.forEach(({ main, side, soup }) => {
       [main, side, soup].forEach((dish) => {
         if (dish?.ingredients) {
-          dish.ingredients.split(/[、,，\n]/).forEach((item) => {
-            const t = item.trim();
-            if (t) allIngredients.push(t);
-          });
+          dish.ingredients.split(/[、,，\n]/).forEach((item) => { const t = item.trim(); if (t) allIngredients.push(t); });
         }
       });
     });
@@ -130,27 +128,34 @@ export default function Home() {
 
   return (
     <div style={{ background: theme.bg, minHeight: "100vh", fontFamily: "'Zen Kaku Gothic New', 'Hiragino Sans', sans-serif" }}>
-      <div style={{ background: theme.bg, padding: "24px 20px 16px", borderBottom: `1px solid ${theme.surface}` }}>
+
+      {/* ヘッダー */}
+      <div style={{ background: theme.bg, padding: "20px 16px 12px", borderBottom: `1px solid ${theme.surface}`, position: "sticky", top: 0, zIndex: 10 }}>
         <div style={{ maxWidth: 800, margin: "0 auto" }}>
-          <div style={{ display: "flex", alignItems: "center", gap: 12, marginBottom: 4 }}>
-            <div style={{ width: 40, height: 40, background: theme.primary, borderRadius: "50%", display: "flex", alignItems: "center", justifyContent: "center", fontSize: 18 }}>🍳</div>
-            <div>
-              <div style={{ fontSize: 20, color: theme.text, fontWeight: 500 }}>献立アプリ</div>
-              <div style={{ fontSize: 11, color: theme.muted }}>旬の食材で、毎日の食卓を</div>
+          <div style={{ display: "flex", alignItems: "center", gap: 10, marginBottom: 12 }}>
+            <div style={{ width: 36, height: 36, background: theme.primary, borderRadius: "50%", display: "flex", alignItems: "center", justifyContent: "center", fontSize: 16 }}>🍳</div>
+            <div style={{ flex: 1 }}>
+              <div style={{ fontSize: 18, color: theme.text, fontWeight: 500 }}>献立アプリ</div>
             </div>
-            <span style={{ marginLeft: "auto", fontSize: 12, color: theme.accent, background: theme.surface, padding: "4px 12px", borderRadius: 20 }}>今は{currentSeason} 🌿</span>
+            <span style={{ fontSize: 11, color: theme.accent, background: theme.surface, padding: "3px 10px", borderRadius: 20 }}>今は{currentSeason} 🌿</span>
+            <label style={{ padding: "7px 14px", borderRadius: 8, background: theme.primary, color: theme.bg, cursor: "pointer", fontSize: 13, fontWeight: 500, whiteSpace: "nowrap" }}>
+              {uploading ? "追加中..." : "+ 追加"}
+              <input type="file" multiple onChange={handleImageChange} style={{ display: "none" }} accept="image/*" />
+            </label>
           </div>
+
+          <input type="text" placeholder="レシピを検索..." value={search} onChange={(e) => setSearch(e.target.value)}
+            style={{ width: "100%", padding: "8px 14px", borderRadius: 20, border: `1px solid ${theme.surface}`, background: theme.card, fontSize: 13, color: theme.text, boxSizing: "border-box", outline: "none" }} />
         </div>
       </div>
 
-      <div style={{ maxWidth: 800, margin: "0 auto", padding: "20px 16px" }}>
-        <input type="text" placeholder="レシピを検索..." value={search} onChange={(e) => setSearch(e.target.value)}
-          style={{ width: "100%", padding: "10px 16px", borderRadius: 24, border: `1px solid ${theme.surface}`, background: theme.card, fontSize: 14, color: theme.text, marginBottom: 16, boxSizing: "border-box", outline: "none" }} />
+      <div style={{ maxWidth: 800, margin: "0 auto", padding: "12px 16px" }}>
 
-        <div style={{ display: "flex", gap: 8, marginBottom: 16, flexWrap: "wrap" }}>
+        {/* カテゴリフィルター */}
+        <div style={{ display: "flex", gap: 6, marginBottom: 12, overflowX: "auto", paddingBottom: 4 }}>
           {["すべて", ...CATEGORIES].map((cat) => (
             <button key={cat} onClick={() => setFilterCategory(cat)}
-              style={{ padding: "6px 16px", borderRadius: 20, border: "none", cursor: "pointer", fontSize: 13, fontFamily: "inherit",
+              style={{ padding: "5px 14px", borderRadius: 20, border: "none", cursor: "pointer", fontSize: 12, fontFamily: "inherit", whiteSpace: "nowrap",
                 background: filterCategory === cat ? theme.primary : theme.surface,
                 color: filterCategory === cat ? theme.bg : theme.primary }}>
               {cat}
@@ -158,41 +163,40 @@ export default function Home() {
           ))}
         </div>
 
-        <div style={{ display: "flex", gap: 10, marginBottom: 24, flexWrap: "wrap" }}>
+        {/* アクションボタン */}
+        <div style={{ display: "flex", gap: 8, marginBottom: 16 }}>
           <button onClick={makeWeeklyMenu}
-            style={{ padding: "10px 20px", borderRadius: 8, border: "none", background: theme.primary, color: theme.bg, cursor: "pointer", fontSize: 14, fontFamily: "inherit", fontWeight: 500 }}>
-            🌿 旬の献立を作る
+            style={{ flex: 1, padding: "9px", borderRadius: 8, border: "none", background: theme.primary, color: theme.bg, cursor: "pointer", fontSize: 13, fontFamily: "inherit", fontWeight: 500 }}>
+            🌿 献立を作る
           </button>
           {weeklyMenu.length > 0 && (
             <button onClick={makeShoppingList}
-              style={{ padding: "10px 20px", borderRadius: 8, border: "none", background: theme.accent, color: "white", cursor: "pointer", fontSize: 14, fontFamily: "inherit", fontWeight: 500 }}>
+              style={{ flex: 1, padding: "9px", borderRadius: 8, border: "none", background: theme.accent, color: "white", cursor: "pointer", fontSize: 13, fontFamily: "inherit", fontWeight: 500 }}>
               🛒 買い物リスト
             </button>
           )}
-          <label style={{ padding: "10px 20px", borderRadius: 8, background: theme.surface, color: theme.primary, cursor: "pointer", fontSize: 14, fontWeight: 500 }}>
-            {uploading ? "アップロード中..." : "📷 画像を追加"}
-            <input type="file" multiple onChange={handleImageChange} style={{ display: "none" }} accept="image/*" />
-          </label>
         </div>
 
+        {/* 今週の献立 */}
         {weeklyMenu.length > 0 && (
-          <div style={{ background: theme.card, borderRadius: 12, padding: 16, marginBottom: 20 }}>
-            <div style={{ fontSize: 13, color: theme.muted, marginBottom: 12 }}>📅 今週の献立</div>
+          <div style={{ background: theme.card, borderRadius: 12, padding: 14, marginBottom: 14 }}>
+            <div style={{ fontSize: 12, color: theme.muted, marginBottom: 10 }}>📅 今週の献立</div>
             {weeklyMenu.map(({ day, main, side, soup }) => (
-              <div key={day} style={{ display: "flex", alignItems: "center", padding: "10px 0", borderBottom: `0.5px solid ${theme.surface}` }}>
-                <span style={{ width: 40, fontSize: 13, color: theme.muted, flexShrink: 0 }}>{day}曜</span>
-                <span style={{ fontSize: 13, color: theme.text }}>🍖 {main?.title || "未設定"}　🥗 {side?.title || "未設定"}　🍜 {soup?.title || "未設定"}</span>
+              <div key={day} style={{ display: "flex", padding: "8px 0", borderBottom: `0.5px solid ${theme.surface}`, gap: 8 }}>
+                <span style={{ width: 32, fontSize: 12, color: theme.muted, flexShrink: 0 }}>{day}曜</span>
+                <span style={{ fontSize: 12, color: theme.text }}>🍖 {main?.title || "未設定"}　🥗 {side?.title || "未設定"}　🍜 {soup?.title || "未設定"}</span>
               </div>
             ))}
           </div>
         )}
 
+        {/* 買い物リスト */}
         {shoppingList.length > 0 && (
-          <div style={{ background: theme.card, borderRadius: 12, padding: 16, marginBottom: 24 }}>
-            <div style={{ fontSize: 13, color: theme.muted, marginBottom: 12 }}>🛒 買い物リスト</div>
-            <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(140px, 1fr))", gap: 8 }}>
+          <div style={{ background: theme.card, borderRadius: 12, padding: 14, marginBottom: 14 }}>
+            <div style={{ fontSize: 12, color: theme.muted, marginBottom: 10 }}>🛒 買い物リスト</div>
+            <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(120px, 1fr))", gap: 6 }}>
               {shoppingList.map(({ name, count }) => (
-                <div key={name} style={{ background: theme.bg, borderRadius: 8, padding: "8px 12px", fontSize: 13, color: theme.text, display: "flex", justifyContent: "space-between" }}>
+                <div key={name} style={{ background: theme.bg, borderRadius: 8, padding: "6px 10px", fontSize: 12, color: theme.text, display: "flex", justifyContent: "space-between" }}>
                   <span>{name}</span>
                   {count > 1 && <span style={{ color: theme.accent }}>×{count}</span>}
                 </div>
@@ -201,65 +205,94 @@ export default function Home() {
           </div>
         )}
 
-        <div style={{ fontSize: 13, color: theme.muted, marginBottom: 12 }}>
-          {loading ? "読み込み中..." : `保存したレシピ (${filtered.length}件)`}
+        {/* アルバムグリッド */}
+        <div style={{ fontSize: 12, color: theme.muted, marginBottom: 8 }}>
+          {loading ? "読み込み中..." : `${filtered.length}件のレシピ`}
         </div>
-        <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(180px, 1fr))", gap: 16 }}>
+        <div style={{ display: "grid", gridTemplateColumns: "repeat(3, 1fr)", gap: 2 }}>
           {filtered.map((image) => (
-            <div key={image.id} style={{ background: theme.card, borderRadius: 12, overflow: "hidden" }}>
-              <img src={image.url} onClick={() => setSelectedImage(image.url)}
-                style={{ width: "100%", height: 200, objectFit: "cover", cursor: "pointer", display: "block" }} />
-              <div style={{ padding: 12 }}>
-                <select value={image.category || "主菜"} onChange={(e) => updateImage(image.id, "category", e.target.value)}
-                  style={{ width: "100%", padding: "6px 8px", borderRadius: 6, border: `1px solid ${theme.surface}`, background: theme.bg, color: theme.primary, fontSize: 12, marginBottom: 8, fontFamily: "inherit" }}>
-                  {CATEGORIES.map((cat) => <option key={cat}>{cat}</option>)}
-                </select>
-
-                <input type="text" placeholder="料理名" value={image.title}
-                  onChange={(e) => updateImage(image.id, "title", e.target.value)}
-                  style={{ width: "100%", padding: "7px 10px", borderRadius: 6, border: `1px solid ${theme.surface}`, fontSize: 13, color: theme.text, marginBottom: 8, boxSizing: "border-box", fontFamily: "inherit", background: "white" }} />
-
-                <div style={{ marginBottom: 8 }}>
-                  <div style={{ fontSize: 11, color: theme.muted, marginBottom: 4 }}>旬の季節</div>
-                  <div style={{ display: "flex", gap: 4, flexWrap: "wrap" }}>
-                    {SEASONS.map((season) => (
-                      <button key={season} onClick={() => toggleSeason(image.id, season)}
-                        style={{ padding: "3px 8px", borderRadius: 20, border: "none", cursor: "pointer", fontSize: 11, fontFamily: "inherit",
-                          background: (image.seasons || []).includes(season) ? theme.primary : theme.surface,
-                          color: (image.seasons || []).includes(season) ? "white" : theme.muted }}>
-                        {season}
-                      </button>
-                    ))}
-                  </div>
+            <div key={image.id} style={{ position: "relative", aspectRatio: "1", overflow: "hidden", cursor: "pointer" }}
+              onClick={() => setEditingImage(image)}>
+              <img src={image.url} style={{ width: "100%", height: "100%", objectFit: "cover" }} />
+              {image.title && (
+                <div style={{ position: "absolute", bottom: 0, left: 0, right: 0, background: "linear-gradient(transparent, rgba(0,0,0,0.6))", padding: "16px 6px 4px" }}>
+                  <div style={{ fontSize: 11, color: "white", overflow: "hidden", whiteSpace: "nowrap", textOverflow: "ellipsis" }}>{image.title}</div>
                 </div>
-
-                <textarea placeholder="食材（例：鶏肉200g、玉ねぎ1個）" value={image.ingredients || ""}
-                  onChange={(e) => updateImage(image.id, "ingredients", e.target.value)}
-                  style={{ width: "100%", padding: "7px 10px", borderRadius: 6, border: `1px solid ${theme.surface}`, fontSize: 12, color: theme.text, minHeight: 56, marginBottom: 8, boxSizing: "border-box", fontFamily: "inherit", resize: "none", background: "white" }} />
-
-                <textarea placeholder="メモ" value={image.memo}
-                  onChange={(e) => updateImage(image.id, "memo", e.target.value)}
-                  style={{ width: "100%", padding: "7px 10px", borderRadius: 6, border: `1px solid ${theme.surface}`, fontSize: 12, color: theme.text, minHeight: 48, marginBottom: 8, boxSizing: "border-box", fontFamily: "inherit", resize: "none", background: "white" }} />
-
-                <input type="text" placeholder="タグ（例：鶏肉、節約）" value={image.tags || ""}
-                  onChange={(e) => updateImage(image.id, "tags", e.target.value)}
-                  style={{ width: "100%", padding: "7px 10px", borderRadius: 6, border: `1px solid ${theme.surface}`, fontSize: 12, color: theme.text, marginBottom: 10, boxSizing: "border-box", fontFamily: "inherit", background: "white" }} />
-
-                <button onClick={() => deleteImage(image.id)}
-                  style={{ width: "100%", padding: "7px", background: "transparent", color: theme.danger, border: `1px solid ${theme.danger}`, borderRadius: 6, cursor: "pointer", fontSize: 12, fontFamily: "inherit" }}>
-                  削除
-                </button>
-              </div>
+              )}
+              {(image.seasons || []).length > 0 && (
+                <div style={{ position: "absolute", top: 4, right: 4, background: "rgba(0,0,0,0.5)", borderRadius: 10, padding: "2px 6px", fontSize: 10, color: "white" }}>
+                  {image.seasons.join("・")}
+                </div>
+              )}
             </div>
           ))}
         </div>
       </div>
 
-      {selectedImage && (
-        <div onClick={() => setSelectedImage(null)}
-          style={{ position: "fixed", top: 0, left: 0, width: "100vw", height: "100vh",
-            background: "rgba(0,0,0,0.85)", display: "flex", alignItems: "center", justifyContent: "center", zIndex: 1000, cursor: "pointer" }}>
-          <img src={selectedImage} style={{ maxWidth: "90vw", maxHeight: "90vh", borderRadius: 12, objectFit: "contain" }} />
+      {/* 編集モーダル */}
+      {editingImage && (
+        <div style={{ position: "fixed", top: 0, left: 0, width: "100vw", height: "100vh", background: "rgba(0,0,0,0.7)", zIndex: 100, display: "flex", alignItems: "flex-end" }}
+          onClick={(e) => { if (e.target === e.currentTarget) setEditingImage(null); }}>
+          <div style={{ background: theme.bg, width: "100%", borderRadius: "16px 16px 0 0", maxHeight: "90vh", overflowY: "auto" }}>
+
+            {/* 画像 */}
+            <div style={{ position: "relative" }}>
+              <img src={editingImage.url} onClick={() => setLightboxImage(editingImage.url)}
+                style={{ width: "100%", height: 240, objectFit: "cover", borderRadius: "16px 16px 0 0", cursor: "zoom-in", display: "block" }} />
+              <button onClick={() => setEditingImage(null)}
+                style={{ position: "absolute", top: 12, right: 12, background: "rgba(0,0,0,0.5)", border: "none", color: "white", borderRadius: "50%", width: 32, height: 32, cursor: "pointer", fontSize: 16 }}>×</button>
+            </div>
+
+            <div style={{ padding: 16 }}>
+              <select value={editingImage.category || "主菜"} onChange={(e) => updateImage(editingImage.id, "category", e.target.value)}
+                style={{ width: "100%", padding: "8px 10px", borderRadius: 8, border: `1px solid ${theme.surface}`, background: theme.card, color: theme.primary, fontSize: 13, marginBottom: 10, fontFamily: "inherit" }}>
+                {CATEGORIES.map((cat) => <option key={cat}>{cat}</option>)}
+              </select>
+
+              <input type="text" placeholder="料理名" value={editingImage.title}
+                onChange={(e) => updateImage(editingImage.id, "title", e.target.value)}
+                style={{ width: "100%", padding: "9px 12px", borderRadius: 8, border: `1px solid ${theme.surface}`, fontSize: 14, color: theme.text, marginBottom: 10, boxSizing: "border-box", fontFamily: "inherit", background: theme.card }} />
+
+              <div style={{ marginBottom: 10 }}>
+                <div style={{ fontSize: 11, color: theme.muted, marginBottom: 6 }}>旬の季節</div>
+                <div style={{ display: "flex", gap: 6 }}>
+                  {SEASONS.map((season) => (
+                    <button key={season} onClick={() => toggleSeason(editingImage.id, season)}
+                      style={{ flex: 1, padding: "6px", borderRadius: 8, border: "none", cursor: "pointer", fontSize: 13, fontFamily: "inherit",
+                        background: (editingImage.seasons || []).includes(season) ? theme.primary : theme.surface,
+                        color: (editingImage.seasons || []).includes(season) ? "white" : theme.muted }}>
+                      {season}
+                    </button>
+                  ))}
+                </div>
+              </div>
+
+              <textarea placeholder="食材（例：鶏肉200g、玉ねぎ1個）" value={editingImage.ingredients || ""}
+                onChange={(e) => updateImage(editingImage.id, "ingredients", e.target.value)}
+                style={{ width: "100%", padding: "9px 12px", borderRadius: 8, border: `1px solid ${theme.surface}`, fontSize: 13, color: theme.text, minHeight: 70, marginBottom: 10, boxSizing: "border-box", fontFamily: "inherit", resize: "none", background: theme.card }} />
+
+              <textarea placeholder="メモ" value={editingImage.memo}
+                onChange={(e) => updateImage(editingImage.id, "memo", e.target.value)}
+                style={{ width: "100%", padding: "9px 12px", borderRadius: 8, border: `1px solid ${theme.surface}`, fontSize: 13, color: theme.text, minHeight: 60, marginBottom: 10, boxSizing: "border-box", fontFamily: "inherit", resize: "none", background: theme.card }} />
+
+              <input type="text" placeholder="タグ（例：鶏肉、節約）" value={editingImage.tags || ""}
+                onChange={(e) => updateImage(editingImage.id, "tags", e.target.value)}
+                style={{ width: "100%", padding: "9px 12px", borderRadius: 8, border: `1px solid ${theme.surface}`, fontSize: 13, color: theme.text, marginBottom: 14, boxSizing: "border-box", fontFamily: "inherit", background: theme.card }} />
+
+              <button onClick={() => deleteImage(editingImage.id)}
+                style={{ width: "100%", padding: "10px", background: "transparent", color: theme.danger, border: `1px solid ${theme.danger}`, borderRadius: 8, cursor: "pointer", fontSize: 13, fontFamily: "inherit" }}>
+                削除
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* ライトボックス */}
+      {lightboxImage && (
+        <div onClick={() => setLightboxImage(null)}
+          style={{ position: "fixed", top: 0, left: 0, width: "100vw", height: "100vh", background: "rgba(0,0,0,0.95)", display: "flex", alignItems: "center", justifyContent: "center", zIndex: 200, cursor: "pointer" }}>
+          <img src={lightboxImage} style={{ maxWidth: "100vw", maxHeight: "100vh", objectFit: "contain" }} />
         </div>
       )}
     </div>
