@@ -133,9 +133,10 @@ export default function Home() {
 
   const currentSeason = getCurrentSeason();
 
-  // 共通ヘッダー・献立・買い物リスト部分
-  const CommonHeader = () => (
-    <>
+  return (
+    <div style={{ background: theme.bg, minHeight: "100vh", fontFamily: "'Zen Kaku Gothic New', 'Hiragino Sans', sans-serif" }}>
+
+      {/* ヘッダー */}
       <div style={{ background: theme.bg, padding: isMobile ? "16px 16px 10px" : "24px 20px 16px", borderBottom: `1px solid ${theme.surface}`, position: isMobile ? "sticky" : "static", top: 0, zIndex: 10 }}>
         <div style={{ maxWidth: 800, margin: "0 auto" }}>
           <div style={{ display: "flex", alignItems: "center", gap: 10, marginBottom: 12 }}>
@@ -156,6 +157,8 @@ export default function Home() {
       </div>
 
       <div style={{ maxWidth: 800, margin: "0 auto", padding: isMobile ? "10px 12px" : "16px 16px" }}>
+
+        {/* カテゴリフィルター */}
         <div style={{ display: "flex", gap: 6, marginBottom: 12, overflowX: "auto", paddingBottom: 4 }}>
           {["すべて", ...CATEGORIES].map((cat) => (
             <button key={cat} onClick={() => setFilterCategory(cat)}
@@ -167,6 +170,7 @@ export default function Home() {
           ))}
         </div>
 
+        {/* アクションボタン */}
         <div style={{ display: "flex", gap: 8, marginBottom: 14 }}>
           <button onClick={makeWeeklyMenu}
             style={{ flex: 1, padding: "9px", borderRadius: 8, border: "none", background: theme.primary, color: theme.bg, cursor: "pointer", fontSize: 13, fontFamily: "inherit", fontWeight: 500 }}>
@@ -180,7 +184,8 @@ export default function Home() {
           )}
         </div>
 
-      {weeklyMenu.length > 0 && (
+        {/* 今週の献立 */}
+        {weeklyMenu.length > 0 && (
           <div style={{ background: theme.card, borderRadius: 12, padding: 14, marginBottom: 14 }}>
             <div style={{ fontSize: 12, color: theme.muted, marginBottom: 10 }}>📅 今週の献立</div>
             {weeklyMenu.map(({ day, main, side, soup }) => (
@@ -203,6 +208,7 @@ export default function Home() {
           </div>
         )}
 
+        {/* 買い物リスト */}
         {shoppingList.length > 0 && (
           <div style={{ background: theme.card, borderRadius: 12, padding: 14, marginBottom: 14 }}>
             <div style={{ fontSize: 12, color: theme.muted, marginBottom: 10 }}>🛒 買い物リスト</div>
@@ -220,17 +226,9 @@ export default function Home() {
         <div style={{ fontSize: 12, color: theme.muted, marginBottom: 10 }}>
           {loading ? "読み込み中..." : `${filtered.length}件のレシピ`}
         </div>
-      </div>
-    </>
-  );
 
-  return (
-    <div style={{ background: theme.bg, minHeight: "100vh", fontFamily: "'Zen Kaku Gothic New', 'Hiragino Sans', sans-serif" }}>
-      <CommonHeader />
-
-      {isMobile ? (
-        // スマホ：アルバムグリッド
-        <div style={{ maxWidth: 800, margin: "0 auto", padding: "0 12px 20px" }}>
+        {isMobile ? (
+          // スマホ：アルバムグリッド
           <div style={{ display: "grid", gridTemplateColumns: "repeat(3, 1fr)", gap: 2 }}>
             {filtered.map((image) => (
               <div key={image.id} style={{ position: "relative", aspectRatio: "1", overflow: "hidden", cursor: "pointer" }}
@@ -249,14 +247,12 @@ export default function Home() {
               </div>
             ))}
           </div>
-        </div>
-      ) : (
-        // PC：カードスタイル
-        <div style={{ maxWidth: 800, margin: "0 auto", padding: "0 16px 20px" }}>
+        ) : (
+          // PC：カードスタイル
           <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(180px, 1fr))", gap: 16 }}>
             {filtered.map((image) => (
               <div key={image.id} style={{ background: theme.card, borderRadius: 12, overflow: "hidden" }}>
-                <img src={image.url} onClick={() => setLightboxImage(image.url)}
+                <img src={image.url} onClick={() => setEditingImage(image)}
                   style={{ width: "100%", height: 200, objectFit: "cover", cursor: "pointer", display: "block" }} />
                 <div style={{ padding: 12 }}>
                   <select value={image.category || "主菜"} onChange={(e) => updateImage(image.id, "category", e.target.value)}
@@ -296,17 +292,17 @@ export default function Home() {
               </div>
             ))}
           </div>
-        </div>
-      )}
+        )}
+      </div>
 
-      {/* スマホ編集モーダル */}
-      {editingImage && isMobile && (
-        <div style={{ position: "fixed", top: 0, left: 0, width: "100vw", height: "100vh", background: "rgba(0,0,0,0.7)", zIndex: 100, display: "flex", alignItems: "flex-end" }}
+      {/* モーダル（PC・スマホ共通） */}
+      {editingImage && (
+        <div style={{ position: "fixed", top: 0, left: 0, width: "100vw", height: "100vh", background: "rgba(0,0,0,0.7)", zIndex: 100, display: "flex", alignItems: isMobile ? "flex-end" : "center", justifyContent: "center" }}
           onClick={(e) => { if (e.target === e.currentTarget) setEditingImage(null); }}>
-          <div style={{ background: theme.bg, width: "100%", borderRadius: "16px 16px 0 0", maxHeight: "90vh", overflowY: "auto" }}>
+          <div style={{ background: theme.bg, width: isMobile ? "100%" : "480px", borderRadius: isMobile ? "16px 16px 0 0" : "16px", maxHeight: "90vh", overflowY: "auto" }}>
             <div style={{ position: "relative" }}>
               <img src={editingImage.url} onClick={() => setLightboxImage(editingImage.url)}
-                style={{ width: "100%", height: 220, objectFit: "cover", borderRadius: "16px 16px 0 0", cursor: "zoom-in", display: "block" }} />
+                style={{ width: "100%", height: 240, objectFit: "cover", borderRadius: isMobile ? "16px 16px 0 0" : "16px 16px 0 0", cursor: "zoom-in", display: "block" }} />
               <button onClick={() => setEditingImage(null)}
                 style={{ position: "absolute", top: 12, right: 12, background: "rgba(0,0,0,0.5)", border: "none", color: "white", borderRadius: "50%", width: 32, height: 32, cursor: "pointer", fontSize: 16 }}>×</button>
             </div>
