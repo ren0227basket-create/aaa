@@ -13,7 +13,6 @@ const SEASONS = ["春", "夏", "秋", "冬"];
 const CLOUD_NAME = "dix5womo0";
 const UPLOAD_PRESET = "jmxpadhf";
 const GEMINI_API_KEY = "AQ.Ab8RN6L4z0iLacEMW310wo0p2hhpTsuJdWD_6OoYS17EPjHzqA";
-
 function getCurrentSeason() {
   const month = new Date().getMonth() + 1;
   if (month >= 3 && month <= 5) return "春";
