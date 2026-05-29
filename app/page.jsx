@@ -8,7 +8,7 @@ const supabase = createClient(
   "sb_publishable_RB9FccU3HZ30b7Py-8GWrA_cB2HvQN_"
 );
 
-const CATEGORIES = ["主菜", "副菜", "汁物"];
+const CATEGORIES = ["主菜", "副菜", "汁物", "その他"];
 const SEASONS = ["春", "夏", "秋", "冬"];
 const CLOUD_NAME = "dix5womo0";
 const UPLOAD_PRESET = "jmxpadhf";
