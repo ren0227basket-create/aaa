@@ -12,6 +12,7 @@ const CATEGORIES = ["主菜", "副菜", "汁物", "その他"];
 const SEASONS = ["春", "夏", "秋", "冬"];
 const CLOUD_NAME = "dix5womo0";
 const UPLOAD_PRESET = "jmxpadhf";
+const GEMINI_API_KEY = "AQ.Ab8RN6L4z0iLacEMW310wo0p2hhpTsuJdWD_6OoYS17EPjHzqA";
 
 function getCurrentSeason() {
   const month = new Date().getMonth() + 1;
@@ -55,17 +56,45 @@ export default function Home() {
     setLoading(false);
   };
 
-  const handleImageChange = async (e) => {
+const handleImageChange = async (e) => {
     const files = Array.from(e.target.files);
     setUploading(true);
     for (const file of files) {
+      // Cloudinaryにアップロード
       const formData = new FormData();
       formData.append("file", file);
       formData.append("upload_preset", UPLOAD_PRESET);
       const res = await fetch(`https://api.cloudinary.com/v1_1/${CLOUD_NAME}/image/upload`, { method: "POST", body: formData });
       const data = await res.json();
+
+      // Geminiで料理名を推測
+      let title = "";
+      try {
+        const base64 = await new Promise((resolve) => {
+          const reader = new FileReader();
+          reader.onload = () => resolve(reader.result.split(",")[1]);
+          reader.readAsDataURL(file);
+        });
+        const geminiRes = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent?key=${GEMINI_API_KEY}`, {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            contents: [{
+              parts: [
+                { text: "この料理の名前を日本語で答えてください。料理名だけを短く答えてください。料理じゃない場合は空文字を返してください。" },
+                { inline_data: { mime_type: file.type, data: base64 } }
+              ]
+            }]
+          }),
+        });
+        const geminiData = await geminiRes.json();
+        title = geminiData.candidates?.[0]?.content?.parts?.[0]?.text?.trim() || "";
+      } catch (e) {
+        console.error("Gemini error:", e);
+      }
+
       const { data: inserted } = await supabase.from("recipes").insert({
-        url: data.secure_url, title: "", memo: "", tags: "", category: "主菜", ingredients: "", seasons: [],
+        url: data.secure_url, title, memo: "", tags: "", category: "主菜", ingredients: "", seasons: [],
       }).select().single();
       if (inserted) setImages((prev) => [inserted, ...prev]);
     }
