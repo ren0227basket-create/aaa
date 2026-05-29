@@ -8,7 +8,7 @@ const supabase = createClient(
   "sb_publishable_RB9FccU3HZ30b7Py-8GWrA_cB2HvQN_"
 );
 
-const CATEGORIES = ["主菜", "副菜", "汁物", "その他"];
+const CATEGORIES = ["主菜", "副菜", "汁物"];
 const SEASONS = ["春", "夏", "秋", "冬"];
 const CLOUD_NAME = "dix5womo0";
 const UPLOAD_PRESET = "jmxpadhf";
@@ -31,6 +31,7 @@ export default function Home() {
   const [images, setImages] = useState([]);
   const [search, setSearch] = useState("");
   const [weeklyMenu, setWeeklyMenu] = useState([]);
+  const [checkedDishes, setCheckedDishes] = useState({});
   const [filterCategory, setFilterCategory] = useState("すべて");
   const [uploading, setUploading] = useState(false);
   const [shoppingList, setShoppingList] = useState([]);
@@ -97,6 +98,7 @@ export default function Home() {
     const currentSeason = getCurrentSeason();
     const days = ["月", "火", "水", "木", "金", "土", "日"];
     setShoppingList([]);
+    setCheckedDishes({});
     const pick = (cat) => {
       const all = images.filter((img) => img.category === cat);
       const seasonal = all.filter((img) => (img.seasons || []).includes(currentSeason));
@@ -111,12 +113,23 @@ export default function Home() {
     })));
   };
 
+  const toggleDishCheck = (key) => {
+    setCheckedDishes((prev) => ({ ...prev, [key]: !prev[key] }));
+  };
+
   const makeShoppingList = () => {
     const allIngredients = [];
-    weeklyMenu.forEach(({ main, side, soup }) => {
-      [main, side, soup].forEach((dish) => {
-        if (dish?.ingredients) {
-          dish.ingredients.split(/[、,，\n]/).forEach((item) => { const t = item.trim(); if (t) allIngredients.push(t); });
+    weeklyMenu.forEach(({ day, main, side, soup }) => {
+      [
+        { dish: main, key: `${day}-main` },
+        { dish: side, key: `${day}-side` },
+        { dish: soup, key: `${day}-soup` },
+      ].forEach(({ dish, key }) => {
+        if (dish?.ingredients && checkedDishes[key]) {
+          dish.ingredients.split(/[、,，\n]/).forEach((item) => {
+            const t = item.trim();
+            if (t) allIngredients.push(t);
+          });
         }
       });
     });
@@ -132,6 +145,7 @@ export default function Home() {
   });
 
   const currentSeason = getCurrentSeason();
+  const checkedCount = Object.values(checkedDishes).filter(Boolean).length;
 
   return (
     <div style={{ background: theme.bg, minHeight: "100vh", fontFamily: "'Zen Kaku Gothic New', 'Hiragino Sans', sans-serif" }}>
@@ -177,9 +191,9 @@ export default function Home() {
             🌿 献立を作る
           </button>
           {weeklyMenu.length > 0 && (
-            <button onClick={makeShoppingList}
-              style={{ flex: 1, padding: "9px", borderRadius: 8, border: "none", background: theme.accent, color: "white", cursor: "pointer", fontSize: 13, fontFamily: "inherit", fontWeight: 500 }}>
-              🛒 買い物リスト
+            <button onClick={makeShoppingList} disabled={checkedCount === 0}
+              style={{ flex: 1, padding: "9px", borderRadius: 8, border: "none", background: checkedCount > 0 ? theme.accent : theme.surface, color: checkedCount > 0 ? "white" : theme.muted, cursor: checkedCount > 0 ? "pointer" : "not-allowed", fontSize: 13, fontFamily: "inherit", fontWeight: 500 }}>
+              🛒 買い物リスト{checkedCount > 0 ? `（${checkedCount}品）` : ""}
             </button>
           )}
         </div>
@@ -187,20 +201,26 @@ export default function Home() {
         {/* 今週の献立 */}
         {weeklyMenu.length > 0 && (
           <div style={{ background: theme.card, borderRadius: 12, padding: 14, marginBottom: 14 }}>
-            <div style={{ fontSize: 12, color: theme.muted, marginBottom: 10 }}>📅 今週の献立</div>
+            <div style={{ fontSize: 12, color: theme.muted, marginBottom: 6 }}>📅 今週の献立 — 買う料理にチェック✓</div>
             {weeklyMenu.map(({ day, main, side, soup }) => (
-              <div key={day} style={{ display: "flex", padding: "8px 0", borderBottom: `0.5px solid ${theme.surface}`, gap: 8, alignItems: "center" }}>
-                <span style={{ width: 32, fontSize: 12, color: theme.muted, flexShrink: 0 }}>{day}曜</span>
-                <span style={{ fontSize: 12, color: theme.text, display: "flex", gap: 8, flexWrap: "wrap" }}>
-                  {[{ icon: "🍖", dish: main }, { icon: "🥗", dish: side }, { icon: "🍜", dish: soup }].map(({ icon, dish }) => (
-                    dish ? (
-                      <span key={icon} onClick={() => setEditingImage(dish)}
+              <div key={day} style={{ padding: "8px 0", borderBottom: `0.5px solid ${theme.surface}` }}>
+                <span style={{ fontSize: 12, color: theme.muted, marginRight: 8 }}>{day}曜</span>
+                <span style={{ fontSize: 12, display: "inline-flex", gap: 10, flexWrap: "wrap" }}>
+                  {[
+                    { icon: "🍖", dish: main, key: `${day}-main` },
+                    { icon: "🥗", dish: side, key: `${day}-side` },
+                    { icon: "🍜", dish: soup, key: `${day}-soup` },
+                  ].map(({ icon, dish, key }) => dish ? (
+                    <span key={key} style={{ display: "inline-flex", alignItems: "center", gap: 4 }}>
+                      <input type="checkbox" checked={!!checkedDishes[key]} onChange={() => toggleDishCheck(key)}
+                        style={{ cursor: "pointer", accentColor: theme.primary }} />
+                      <span onClick={() => setEditingImage(dish)}
                         style={{ cursor: "pointer", color: theme.primary, textDecoration: "underline", textDecorationColor: theme.surface }}>
                         {icon} {dish.title || "名前未設定"}
                       </span>
-                    ) : (
-                      <span key={icon} style={{ color: theme.muted }}>{icon} 未設定</span>
-                    )
+                    </span>
+                  ) : (
+                    <span key={key} style={{ color: theme.muted }}>{icon} 未設定</span>
                   ))}
                 </span>
               </div>
@@ -228,7 +248,6 @@ export default function Home() {
         </div>
 
         {isMobile ? (
-          // スマホ：アルバムグリッド
           <div style={{ display: "grid", gridTemplateColumns: "repeat(3, 1fr)", gap: 2 }}>
             {filtered.map((image) => (
               <div key={image.id} style={{ position: "relative", aspectRatio: "1", overflow: "hidden", cursor: "pointer" }}
@@ -248,7 +267,6 @@ export default function Home() {
             ))}
           </div>
         ) : (
-          // PC：カードスタイル
           <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(180px, 1fr))", gap: 16 }}>
             {filtered.map((image) => (
               <div key={image.id} style={{ background: theme.card, borderRadius: 12, overflow: "hidden" }}>
@@ -295,7 +313,7 @@ export default function Home() {
         )}
       </div>
 
-      {/* モーダル（PC・スマホ共通） */}
+      {/* モーダル */}
       {editingImage && (
         <div style={{ position: "fixed", top: 0, left: 0, width: "100vw", height: "100vh", background: "rgba(0,0,0,0.7)", zIndex: 100, display: "flex", alignItems: isMobile ? "flex-end" : "center", justifyContent: "center" }}
           onClick={(e) => { if (e.target === e.currentTarget) setEditingImage(null); }}>
